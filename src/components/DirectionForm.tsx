@@ -1,7 +1,14 @@
-import { FunctionComponent, useContext, useEffect, useState } from "react";
+import {
+  ChangeEvent,
+  FunctionComponent,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import CodigoPostal, { BlurProps } from "./CodigoPostal";
 import { FIELDS_DATA } from "@/lib/constants";
 import {
+  createRecord,
   getColonias,
   getEstados,
   getLocalidades,
@@ -23,6 +30,8 @@ import { Label } from "./ui/label";
 import SelectCollections from "./SelectColections";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
+import { Loader2 } from "lucide-react";
+import { PrimitiveSpanProps } from "@radix-ui/react-select";
 
 interface DirectionFormProps {}
 
@@ -48,14 +57,19 @@ const DirectionForm: FunctionComponent<DirectionFormProps> = () => {
     colonias: [],
   });
   const [Selections, setSelections] = useState<SelectionsType>();
-  const [CPAvailables, setCPAvailables] = useState<Map<string,string>>();
+  const [CPAvailables, setCPAvailables] = useState<Map<string, string>>();
   const [CPValue, setCPValue] = useState<string | undefined>();
+  const [InputValue, setInputValue] = useState("");
+  const [Loading, setLoading] = useState<
+    "estado" | "municipio" | "localidad" | "colonia" | "saving" | undefined
+  >();
 
   const { dispatch } = useContext(CPContext)!;
   const { toast } = useToast();
 
   const handleOnBlur = async ({ name, value }: BlurProps) => {
-    if (name === FIELDS_DATA.CP) {
+    if (name.length < 6) return;
+    else if (name === FIELDS_DATA.CP) {
       try {
         const cp_object: CodigoPostalType = await searchByCodigoPostal(value);
         dispatch(setCodigoPostal(cp_object));
@@ -97,16 +111,14 @@ const DirectionForm: FunctionComponent<DirectionFormProps> = () => {
         }));
 
       if (key === "estado") getCollection("municipio", value!);
-      else if (key === "municipio")
-        getCollection("localidad", value!);
-      else if (key === "localidad")
-        getCollection("colonia", value!);
-      else if (key === 'colonia')
-        setCPValue(CPAvailables?.get(value!))
+      else if (key === "municipio") getCollection("localidad", value!);
+      else if (key === "localidad") getCollection("colonia", value!);
+      else if (key === "colonia") setCPValue(CPAvailables?.get(value!));
     }
   };
 
   const getCollection = (key: keyof SelectionsType, comparKey: string) => {
+    setLoading(key);
     switch (key) {
       case "municipio":
         getMunicipios(comparKey).then((data) => {
@@ -121,42 +133,69 @@ const DirectionForm: FunctionComponent<DirectionFormProps> = () => {
           setValues((prev) => ({
             ...prev,
             localidades: data,
-          }))
-        })
-        break
+          }));
+        });
+        break;
       case "colonia":
-        getColonias( Selections!.estado!, Selections!.municipio!, comparKey)
-        .then((data) => {
-          setValues((prev) => ({
-            ...prev,
-            colonias: data
-          }))
+        getColonias(Selections!.estado!, Selections!.municipio!, comparKey)
+          .then((data) => {
+            setValues((prev) => ({
+              ...prev,
+              colonias: data,
+            }));
 
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const ColoniaMap = new Map()
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const ColoniaMap = new Map();
 
-          data.forEach((element: ColoniaType) => {
-            ColoniaMap.set(element.clave, element.cp)
+            data.forEach((element: ColoniaType) => {
+              ColoniaMap.set(element.clave, element.cp);
+            });
+
+            setCPAvailables(ColoniaMap);
+          })
+          .catch(({ message }) => {
+            setValues((prev) => ({
+              ...prev,
+              colonias: [],
+            }));
+            toast({
+              title: "Error al obtener Colonias",
+              description: message || "Unexpected",
+              variant: "destructive",
+            });
           });
-
-          setCPAvailables(ColoniaMap)
-          
-        })
-        .catch(({ message }) => {
-          setValues((prev) => ({
-            ...prev,
-            colonias: []
-          }))
-          toast({
-            title: "Error al obtener Colonias",
-            description: message || "Unexpected",
-            variant: "destructive",
-          });
-        })
         break;
       default:
         break;
     }
+
+    setLoading(undefined);
+  };
+
+  const handleOnSave = async () => {
+    setLoading("saving")
+    const record = await createRecord({
+      calle: InputValue,
+      colonia: Selections?.colonia,
+      cp: Selections?.estado
+    })
+
+    setLoading(undefined)
+    return record
+  };
+
+  const validateButton = () => {
+    let flag = false;
+    if (Selections) {
+      const keys = Object.keys(Selections);
+      flag = keys.length == 4 && InputValue.length > 3;
+    }
+
+    return flag;
+  };
+  const handleOnChangeInput = (e: ChangeEvent<HTMLInputElement>) => {
+    const { value } = e.target;
+    setInputValue(value);
   };
 
   useEffect(() => {
@@ -173,13 +212,16 @@ const DirectionForm: FunctionComponent<DirectionFormProps> = () => {
       <h1 className="text-2xl text-center">
         Formulario de captura de dirección
       </h1>
-      
+
       <div className="w-[500px]">
         <CodigoPostal CPvalue={CPValue} onBlur={handleOnBlur} />
       </div>
       <div className="flex gap-6">
         <div>
-          <Label>Estado</Label>
+          <Label className="flex gap-3 items-center">
+            Estado
+            {Loading === "estado" && <Loader />}
+          </Label>
           <SelectCollections
             onValueChange={handleOnSelectValue}
             name={"estado"}
@@ -190,7 +232,10 @@ const DirectionForm: FunctionComponent<DirectionFormProps> = () => {
           />
         </div>
         <div>
-          <Label>Municipio</Label>
+          <Label className="flex gap-3 items-center">
+            Municipio
+            {Loading === "municipio" && <Loader />}
+          </Label>
           <SelectCollections
             onValueChange={handleOnSelectValue}
             name={"municipio"}
@@ -204,7 +249,10 @@ const DirectionForm: FunctionComponent<DirectionFormProps> = () => {
       </div>
       <div className="flex gap-6">
         <div>
-          <Label>Localidad</Label>
+          <Label className="flex gap-3 items-center">
+            Localidad
+            {Loading === "localidad" && <Loader />}
+          </Label>
           <SelectCollections
             onValueChange={handleOnSelectValue}
             name={"localidad"}
@@ -216,7 +264,10 @@ const DirectionForm: FunctionComponent<DirectionFormProps> = () => {
           />
         </div>
         <div>
-          <Label>Colonia</Label>
+          <Label className="flex gap-3 items-center">
+            Colonia
+            {Loading === "colonia" && <Loader />}
+          </Label>
           <SelectCollections
             onValueChange={handleOnSelectValue}
             name={"colonia"}
@@ -229,14 +280,32 @@ const DirectionForm: FunctionComponent<DirectionFormProps> = () => {
         </div>
       </div>
       <div>
-        <Label>Calle y número</Label>
-        <Input className="w-full" placeholder="Calle y número" />
+        <Label className="flex gap-3 items-center">Calle y número</Label>
+        <Input
+          className="w-full"
+          value={InputValue}
+          placeholder="Calle y número"
+          onChange={handleOnChangeInput}
+        />
       </div>
-      <Button className="mt-6" size={"lg"}>
+      <Button
+        disabled={!validateButton()}
+        className={`mt-6`}
+        size={"lg"}
+        onClick={handleOnSave}
+      >
+        { Loading === 'saving' && <Loader className="text-white transition-transform animate-spin" />}
         Continuar
       </Button>
     </section>
   );
 };
 
+function Loader(props: PrimitiveSpanProps) {
+  return (
+    <span className="text-blue-600 transition-transform animate-spin" {...props}>
+      <Loader2 className="scale-75" />
+    </span>
+  );
+}
 export default DirectionForm;
