@@ -23,7 +23,6 @@ import type {
   MunicipioType,
 } from "@/lib/types";
 
-import { setCodigoPostal } from "@/Reducer";
 import { CPContext } from "@/Provider";
 import { useToast } from "./ui/use-toast";
 import { Label } from "./ui/label";
@@ -32,6 +31,7 @@ import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { Loader2 } from "lucide-react";
 import { PrimitiveSpanProps } from "@radix-ui/react-select";
+import { setCodigoPostal, setEstados } from "@/Actions/Actions";
 
 interface DirectionFormProps {}
 
@@ -186,11 +186,11 @@ const DirectionForm: FunctionComponent<DirectionFormProps> = () => {
 
   const validateButton = () => {
     let flag = false;
+    const validFields = ['estado', 'municipio', 'localidad']
     if (Selections) {
       const keys = Object.keys(Selections);
-      flag = keys.length == 4 && InputValue.length > 3;
+      flag = keys.every((item) => validFields.includes(item)) && InputValue.length > 3;
     }
-
     return flag;
   };
   const handleOnChangeInput = (e: ChangeEvent<HTMLInputElement>) => {
@@ -204,6 +204,7 @@ const DirectionForm: FunctionComponent<DirectionFormProps> = () => {
         ...prev,
         estados,
       }));
+      dispatch(setEstados(estados))
     });
   }, []);
 

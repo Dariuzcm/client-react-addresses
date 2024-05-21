@@ -1,4 +1,4 @@
-import { FunctionComponent, useEffect, useState } from "react";
+import { FunctionComponent, useContext, useEffect, useState } from "react";
 import {
   Table,
   TableBody,
@@ -9,17 +9,19 @@ import {
   TableRow,
 } from "./ui/table";
 import { ColoniaType, EstadoType, Meta, RecordType } from "@/lib/types";
-import { getEstados, getRecords } from "@/api/apiHandler";
+import { getRecords } from "@/api/apiHandler";
 
 import { Trash2, RefreshCcw } from "lucide-react";
 import { Button } from "./ui/button";
 import Paginator from "./Paginator";
 import { useToast } from "./ui/use-toast";
+import { CPContext } from "@/Provider";
 
 interface TableRecordsProps {}
 
 const labels: string[] = ["id", "cp", "calle", "colonia", "estado"];
 const TableRecords: FunctionComponent<TableRecordsProps> = () => {
+  const { state } = useContext(CPContext)!
   const [Records, setRecords] = useState<RecordType[]>([]);
   const [MetaFields, setMeta] = useState<Meta>();
   const [Colonias, setColonias] = useState<ColoniaType[]>();
@@ -54,12 +56,14 @@ const TableRecords: FunctionComponent<TableRecordsProps> = () => {
     return finded?.nombreEstado
   }
 
+
   useEffect(() => {
-    getRecordsInit();
-    getEstados().then((data) => {
-      setEstados(data)
-    })
-  }, []);
+    if(state){
+      setEstados(state.estados)
+      getRecordsInit();
+    }
+  }, [state]);
+
   return (
     <div className="bg-zinc-100 p-4 w-[700px] mx-auto mt-3 rounded-lg shadow-lg">
       <Table>

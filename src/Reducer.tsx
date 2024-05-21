@@ -1,12 +1,10 @@
-import { CodigoPostalType } from "./lib/types";
+import { ActionType } from "./Actions/Actions";
+import { CodigoPostalType, EstadoType } from "./lib/types";
 
-export type ActionType = {
-  type: ActionTypes
-  payload: Partial<CodigoPostalType>
-}
+
 
 // eslint-disable-next-line react-refresh/only-export-components
-export const initialState: CodigoPostalType = {
+export const initialState: CodigoPostalType & { estados: EstadoType []} = {
   cp: "",
   estado: {
     clave: "",
@@ -22,24 +20,21 @@ export const initialState: CodigoPostalType = {
     clave: "",
     estado: "",
     descripcion: ""
-  }
+  },
+  colonia: {
+    clave: "",
+    cp: "",
+    descripcion: '',
+  },
+  estados: []
 }
 
-type ActionTypes = 'SET_CODIGO_POSTAL'
-
-// eslint-disable-next-line react-refresh/only-export-components
-export function setCodigoPostal(cp: Partial<CodigoPostalType>): ActionType {
-  return {
-    type: 'SET_CODIGO_POSTAL',
-    payload: cp
-  }
-}
 
 export function DirectionReducer(state = initialState, action: ActionType) {
   switch (action.type) {
     case 'SET_CODIGO_POSTAL':
       // eslint-disable-next-line no-case-declarations
-      const { estado, municipio, localidad } = action.payload
+      const { estado, municipio, localidad } = action.payload as CodigoPostalType
       return {
         ...state,
         estado: {
@@ -55,7 +50,13 @@ export function DirectionReducer(state = initialState, action: ActionType) {
           ...localidad
         },
       }
+    case 'SET_ESTADOS' :
+      return {
+        ...state,
+        estados: action.payload
+      }
     default:
       return state
   }
 }
+

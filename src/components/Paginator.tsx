@@ -4,6 +4,7 @@ import {
   PaginationContent,
   PaginationItem,
   PaginationLink,
+  PaginationNext,
   PaginationPrevious,
 } from "./ui/pagination";
 import { Meta } from "@/lib/types";
@@ -42,15 +43,15 @@ const Paginator: FunctionComponent<PaginatorProps> = (props) => {
       <Pagination>
         <PaginationContent>
           {previousPageUrl && (
-            <PaginationItem>
+            <PaginationItem key={'previous'}>
               <PaginationPrevious href="#" />
             </PaginationItem>
           )}
           
           {getPaginationItems()}
           {nextPageUrl && (
-            <PaginationItem>
-              <PaginationPrevious href="#" />
+            <PaginationItem key={'next'}>
+              <PaginationNext href="#" />
             </PaginationItem>
           )}
         </PaginationContent>

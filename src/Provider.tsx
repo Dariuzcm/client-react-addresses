@@ -1,9 +1,9 @@
 import { createContext, ReactNode, useReducer } from "react";
-import { CodigoPostalType } from "./lib/types";
-import { ActionType, DirectionReducer, initialState } from "./Reducer";
+import { DirectionReducer, initialState } from "./Reducer";
+import { ActionType } from "./Actions/Actions";
 
 interface CPContextType {
-  state: CodigoPostalType;
+  state: typeof initialState;
   dispatch: React.Dispatch<ActionType>;
 }
 
