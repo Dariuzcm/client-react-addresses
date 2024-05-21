@@ -46,9 +46,12 @@ const SelectCollections: FunctionComponent<
         </SelectTrigger>
         <SelectContent>
           <SelectGroup>
-            {collection.map((item) => {
-              const { nombreEstado } = item as EstadoType;
-              const { descripcion } = item as MunicipioType;
+            
+            {collection.length > 0 && collection.map((item) => {
+              if(item == null)
+                return null
+              const nombreEstado = item?.nombreEstado;
+              const descripcion = item?.descripcion;
               return (
                 <SelectItem key={`${type}-${item.clave}`} value={item.clave}>
                   {descripcion || nombreEstado}

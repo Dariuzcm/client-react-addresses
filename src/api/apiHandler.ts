@@ -26,9 +26,10 @@ export const getMunicipios = async (
 };
 
 export const getLocalidades = async (
-  claveLocalidad: string
+  claveMunicipio: string,
+  claveEstado: string
 ): Promise<LocalidadType[]> => {
-  return await apiHandler(`/localidades/${claveLocalidad}`);
+  return await apiHandler(`/localidades/${claveMunicipio}?estado=${claveEstado}`);
 };
 
 export const getColonias = async (
@@ -85,3 +86,13 @@ export const createRecord = async (
   })
   return rec
 };
+
+export const deleteRecord = async (id: number) => {
+  const request = await apiHandler(`/records/${id}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  })
+  console.log(request)
+}

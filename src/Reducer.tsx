@@ -1,62 +1,79 @@
 import { ActionType } from "./Actions/Actions";
-import { CodigoPostalType, EstadoType } from "./lib/types";
-
-
+import { CodigoPostalType, EstadoType, RecordType } from "./lib/types";
 
 // eslint-disable-next-line react-refresh/only-export-components
-export const initialState: CodigoPostalType & { estados: EstadoType []} = {
+export const initialState: CodigoPostalType & {
+  estados: EstadoType[];
+  records: RecordType[];
+} = {
   cp: "",
   estado: {
     clave: "",
     pais: "",
-    nombreEstado: ""
+    nombreEstado: "",
   },
   municipio: {
     clave: "",
     estado: "",
-    descripcion: ""
+    descripcion: "",
   },
   localidad: {
     clave: "",
     estado: "",
-    descripcion: ""
+    descripcion: "",
   },
   colonia: {
     clave: "",
     cp: "",
-    descripcion: '',
+    descripcion: "",
   },
-  estados: []
-}
-
+  estados: [],
+  records: [],
+};
 
 export function DirectionReducer(state = initialState, action: ActionType) {
   switch (action.type) {
-    case 'SET_CODIGO_POSTAL':
+    case "SET_CODIGO_POSTAL":
       // eslint-disable-next-line no-case-declarations
-      const { estado, municipio, localidad } = action.payload as CodigoPostalType
+      const { estado, municipio, localidad, cp } =
+        action.payload as CodigoPostalType;
       return {
         ...state,
+        cp,
         estado: {
           ...state.estado,
-          ...estado
+          ...estado,
         },
         municipio: {
           ...state.municipio,
-          ...municipio
+          ...municipio,
         },
         localidad: {
           ...state.localidad,
-          ...localidad
+          ...localidad,
         },
-      }
-    case 'SET_ESTADOS' :
+      };
+    case "SET_ESTADOS":
       return {
         ...state,
-        estados: action.payload
-      }
+        estados: action.payload,
+      };
+    case "SET_RECORDS":
+      return {
+        ...state,
+        records: action.payload,
+      };
+    case "ADD_RECORD":
+      return {
+        ...state,
+        records: [action.payload, ...state.records],
+      };
+    case "DELETE_RECORD":
+      return {
+        ...state,
+        records: state.records.filter(item => item.id !== action.payload),
+      };
     default:
-      return state
+      return state;
   }
 }
-

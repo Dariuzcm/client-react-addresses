@@ -31,7 +31,7 @@ import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { Loader2 } from "lucide-react";
 import { PrimitiveSpanProps } from "@radix-ui/react-select";
-import { setCodigoPostal, setEstados } from "@/Actions/Actions";
+import { addGlobalRecords, setCodigoPostal, setEstados } from "@/Actions/Actions";
 
 interface DirectionFormProps {}
 
@@ -64,7 +64,7 @@ const DirectionForm: FunctionComponent<DirectionFormProps> = () => {
     "estado" | "municipio" | "localidad" | "colonia" | "saving" | undefined
   >();
 
-  const { dispatch } = useContext(CPContext)!;
+  const { dispatch, state } = useContext(CPContext)!;
   const { toast } = useToast();
 
   const handleOnBlur = async ({ name, value }: BlurProps) => {
@@ -73,25 +73,45 @@ const DirectionForm: FunctionComponent<DirectionFormProps> = () => {
       try {
         const cp_object: CodigoPostalType = await searchByCodigoPostal(value);
         dispatch(setCodigoPostal(cp_object));
+        setCPValue(cp_object.cp)
+        dispatch(setCodigoPostal({ cp: value.toString()}));
+
         toast({
           title: "Codigo Postal",
           description: `Getting information for ${cp_object.cp}`,
           variant: "default",
         });
-        setValues((prev) => ({
-          ...prev,
-          municipios: [cp_object.municipio],
-          localidades: [cp_object.localidad],
-          colonias: [cp_object.colonia],
-        }));
+
+        if(cp_object.estado !== null ){
+          setSelections({
+            estado: cp_object.estado?.clave,
+          })
+          await getCollection('municipio', cp_object.estado.clave)
+          if(cp_object.municipio  !== null ){
+            setSelections({
+              estado: cp_object.estado?.clave,
+              municipio: cp_object.municipio?.clave,
+            })
+            await getCollection('localidad', cp_object.municipio.clave, cp_object.estado?.clave)
+            if(cp_object.localidad  !== null ){
+              setSelections({
+                estado: cp_object.estado?.clave,
+                municipio: cp_object.municipio?.clave,
+                localidad: cp_object.localidad?.clave,
+              })
+              await getCollection('colonia', cp_object.localidad.clave, cp_object.estado?.clave)
+            }
+          }
+        }        
         setSelections({
-          estado: cp_object.estado.clave,
-          municipio: cp_object.municipio.clave,
-          localidad: cp_object.localidad.clave,
-          colonia: cp_object.colonia.clave,
+          estado: cp_object.estado?.clave,
+          municipio: cp_object.municipio?.clave,
+          localidad: cp_object.localidad?.clave,
+          colonia: cp_object.colonia?.clave,
         });
       } catch (error) {
         const { message } = error as Error;
+        console.error(error)
         toast({
           title: "Error al obtener Codigo Postal",
           description: message || "Unexpected",
@@ -101,43 +121,88 @@ const DirectionForm: FunctionComponent<DirectionFormProps> = () => {
     }
   };
 
-  const handleOnSelectValue = (value: string | undefined, name?: string) => {
+  const handleOnSelectValue = (value: string | undefined, name?: string ) => {
     if (name) {
       const key = name as keyof SelectionsType;
-      if (key && value)
+
+      if (key === "estado") {
+        getCollection("municipio", value!);
+        setValues((prev) => ({
+          ...prev,
+          localidades: [],
+          colonias: [],
+        }));
+        setSelections({
+          [key]: value,
+          municipio: "",
+          localidad: "",
+          colonia: "",
+        });
+      } else if (key === "municipio") {
+        getCollection("localidad", value!);
+        setSelections((prev) => ({
+          ...prev,
+          [key]: value,
+          localidad: "",
+          colonia: "",
+        }));
+      } else if (key === "localidad") {
+        getCollection("colonia", value!);
+        setSelections((prev) => ({
+          ...prev,
+          [key]: value,
+          colonia: "",
+        }));
+      } else if (key === "colonia") {
+        setCPValue(CPAvailables?.get(value!));
         setSelections((prev) => ({
           ...prev,
           [key]: value,
         }));
-
-      if (key === "estado") getCollection("municipio", value!);
-      else if (key === "municipio") getCollection("localidad", value!);
-      else if (key === "localidad") getCollection("colonia", value!);
-      else if (key === "colonia") setCPValue(CPAvailables?.get(value!));
+      }
     }
   };
 
-  const getCollection = (key: keyof SelectionsType, comparKey: string) => {
+  const getCollection = async  (key: keyof SelectionsType, comparKey: string , helper?: string) => {
     setLoading(key);
+
     switch (key) {
       case "municipio":
-        getMunicipios(comparKey).then((data) => {
-          setValues((prev) => ({
-            ...prev,
-            municipios: data,
-          }));
-        });
-        break;
+        return getMunicipios(comparKey)
+          .then((data) => {
+            setValues((prev) => ({
+              ...prev,
+              municipios: data,
+            }));
+            setLoading(undefined);
+          })
+          .catch(({ message }) => {
+            setLoading(undefined);
+            toast({
+              title: "Error al obtener Municipios",
+              description: message || "Unexpected",
+              variant: "destructive",
+            });
+          });
       case "localidad":
-        getLocalidades(Selections!.estado!).then((data) => {
-          setValues((prev) => ({
-            ...prev,
-            localidades: data,
-          }));
-        });
-        break;
+        return getLocalidades(comparKey, Selections?.estado || helper!)
+          .then((data) => {
+            setValues((prev) => ({
+              ...prev,
+              localidades: data,
+            }));
+            setLoading(undefined);
+          })
+          .catch(({ message }) => {
+            toast({
+              title: "Error al obtener Localidades",
+              description: message || "Unexpected",
+              variant: "destructive",
+            });
+            setLoading(undefined);
+          });
       case "colonia":
-        getColonias(Selections!.estado!, Selections!.municipio!, comparKey)
+        return getColonias(Selections?.estado || helper!, Selections!.municipio!, comparKey)
           .then((data) => {
             setValues((prev) => ({
               ...prev,
@@ -152,6 +217,7 @@ const DirectionForm: FunctionComponent<DirectionFormProps> = () => {
             });
 
             setCPAvailables(ColoniaMap);
+            setLoading(undefined);
           })
           .catch(({ message }) => {
             setValues((prev) => ({
@@ -163,36 +229,46 @@ const DirectionForm: FunctionComponent<DirectionFormProps> = () => {
               description: message || "Unexpected",
               variant: "destructive",
             });
+            setLoading(undefined);
           });
-        break;
       default:
         break;
     }
 
-    setLoading(undefined);
   };
 
   const handleOnSave = async () => {
-    setLoading("saving")
-    const record = await createRecord({
+    setLoading("saving");
+    console.log(state)
+    createRecord({
       calle: InputValue,
       colonia: Selections?.colonia,
-      cp: Selections?.estado
-    })
-
-    setLoading(undefined)
-    return record
+      cp: state.cp,
+    }).then((record) => {
+      dispatch(addGlobalRecords(record))
+      setLoading(undefined);
+    }).catch(({message}) => {
+      setLoading(undefined);
+        toast({
+          title: "Error al obtener Municipios",
+          description: message || "Unexpected",
+          variant: "destructive",
+        });
+    });
   };
 
   const validateButton = () => {
     let flag = false;
-    const validFields = ['estado', 'municipio', 'localidad']
+    const validFields = ["estado", "municipio", "localidad"];
     if (Selections) {
       const keys = Object.keys(Selections);
-      flag = keys.every((item) => validFields.includes(item)) && InputValue.length > 3;
+      flag =
+        validFields.every((item) => keys.includes(item)) &&
+        InputValue.length > 3;
     }
     return flag;
   };
+
   const handleOnChangeInput = (e: ChangeEvent<HTMLInputElement>) => {
     const { value } = e.target;
     setInputValue(value);
@@ -204,7 +280,7 @@ const DirectionForm: FunctionComponent<DirectionFormProps> = () => {
         ...prev,
         estados,
       }));
-      dispatch(setEstados(estados))
+      dispatch(setEstados(estados));
     });
   }, []);
 
@@ -219,7 +295,7 @@ const DirectionForm: FunctionComponent<DirectionFormProps> = () => {
       </div>
       <div className="flex gap-6">
         <div>
-          <Label className="flex gap-3 items-center">
+          <Label className="flex gap-3 items-center pb-2">
             Estado
             {Loading === "estado" && <Loader />}
           </Label>
@@ -233,7 +309,7 @@ const DirectionForm: FunctionComponent<DirectionFormProps> = () => {
           />
         </div>
         <div>
-          <Label className="flex gap-3 items-center">
+          <Label className="flex gap-3 items-center pb-2">
             Municipio
             {Loading === "municipio" && <Loader />}
           </Label>
@@ -250,7 +326,7 @@ const DirectionForm: FunctionComponent<DirectionFormProps> = () => {
       </div>
       <div className="flex gap-6">
         <div>
-          <Label className="flex gap-3 items-center">
+          <Label className="flex gap-3 items-center pb-2">
             Localidad
             {Loading === "localidad" && <Loader />}
           </Label>
@@ -265,14 +341,14 @@ const DirectionForm: FunctionComponent<DirectionFormProps> = () => {
           />
         </div>
         <div>
-          <Label className="flex gap-3 items-center">
+          <Label className="flex gap-3 items-center pb-2">
             Colonia
             {Loading === "colonia" && <Loader />}
           </Label>
           <SelectCollections
             onValueChange={handleOnSelectValue}
             name={"colonia"}
-            disabled={!Selections?.localidad}
+            disabled={!Selections?.localidad || Values.colonias.length === 0}
             value={Selections?.colonia}
             title={"Seleccione su colonia"}
             collection={Values.colonias}
@@ -281,7 +357,7 @@ const DirectionForm: FunctionComponent<DirectionFormProps> = () => {
         </div>
       </div>
       <div>
-        <Label className="flex gap-3 items-center">Calle y número</Label>
+        <Label className="flex gap-3 items-center pb-2">Calle y número</Label>
         <Input
           className="w-full"
           value={InputValue}
@@ -295,7 +371,9 @@ const DirectionForm: FunctionComponent<DirectionFormProps> = () => {
         size={"lg"}
         onClick={handleOnSave}
       >
-        { Loading === 'saving' && <Loader className="text-white transition-transform animate-spin" />}
+        {Loading === "saving" && (
+          <Loader className="text-white transition-transform animate-spin" />
+        )}
         Continuar
       </Button>
     </section>
@@ -304,7 +382,10 @@ const DirectionForm: FunctionComponent<DirectionFormProps> = () => {
 
 function Loader(props: PrimitiveSpanProps) {
   return (
-    <span className="text-blue-600 transition-transform animate-spin" {...props}>
+    <span
+      className="text-blue-600 transition-transform animate-spin"
+      {...props}
+    >
       <Loader2 className="scale-75" />
     </span>
   );
