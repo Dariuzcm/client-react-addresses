@@ -30,6 +30,7 @@ export const initialState: CodigoPostalType & {
   estados: [],
   records: [],
 };
+export const Inicializer = (arg: typeof initialState) => arg
 
 export function DirectionReducer(state = initialState, action: ActionType) {
   switch (action.type) {

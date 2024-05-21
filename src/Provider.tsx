@@ -14,7 +14,9 @@ interface CPProviderProps {
 }
 
 export const CodigoPostalProvider: React.FC<CPProviderProps> = ({ children }) => {
-  const [state, dispatch] = useReducer(DirectionReducer, initialState);
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  //@ts-expect-error
+  const [state, dispatch] = useReducer(DirectionReducer, initialState );
 
   return (
     <CPContext.Provider value={{ state, dispatch }}>

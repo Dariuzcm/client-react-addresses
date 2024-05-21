@@ -50,8 +50,8 @@ const SelectCollections: FunctionComponent<
             {collection.length > 0 && collection.map((item) => {
               if(item == null)
                 return null
-              const nombreEstado = item?.nombreEstado;
-              const descripcion = item?.descripcion;
+              const nombreEstado = (item as EstadoType)?.nombreEstado ;
+              const descripcion = (item as MunicipioType)?.descripcion;
               return (
                 <SelectItem key={`${type}-${item.clave}`} value={item.clave}>
                   {descripcion || nombreEstado}
