@@ -25,6 +25,7 @@ const CodigoPostal: FunctionComponent<CodigoPostalProps> = (props) => {
   }
   const handleOnChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { value } = e.target
+    if(value.length > 5) return
     if(Number(value) || value === FIELDS_DATA.CP) {
       setCp(value)
     }
