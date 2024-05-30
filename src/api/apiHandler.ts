@@ -36,7 +36,7 @@ export const getColonias = async (
   estado: string,
   municipio: string,
   localidad: string
-) => {
+): Promise<ColoniaType[]> => {
   return await apiHandler(`/colonias`, {
     method: "POST",
     body: JSON.stringify({

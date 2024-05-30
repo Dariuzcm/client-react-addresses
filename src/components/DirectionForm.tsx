@@ -31,7 +31,11 @@ import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { Loader2 } from "lucide-react";
 import { PrimitiveSpanProps } from "@radix-ui/react-select";
-import { addGlobalRecords, setCodigoPostal, setEstados } from "@/Actions/Actions";
+import {
+  addGlobalRecords,
+  setCodigoPostal,
+  setEstados,
+} from "@/Actions/Actions";
 
 interface DirectionFormProps {}
 
@@ -42,7 +46,7 @@ type ValuesTypes = {
   colonias: ColoniaType[];
 };
 
-type SelectionsType = {
+export type SelectionsType = {
   estado?: string;
   municipio?: string;
   localidad?: string;
@@ -73,8 +77,8 @@ const DirectionForm: FunctionComponent<DirectionFormProps> = () => {
       try {
         const cp_object: CodigoPostalType = await searchByCodigoPostal(value);
         dispatch(setCodigoPostal(cp_object));
-        setCPValue(cp_object.cp)
-        dispatch(setCodigoPostal({ cp: value.toString()}));
+        setCPValue(cp_object.cp);
+        dispatch(setCodigoPostal({ cp: value.toString() }));
 
         toast({
           title: "Codigo Postal",
@@ -82,27 +86,37 @@ const DirectionForm: FunctionComponent<DirectionFormProps> = () => {
           variant: "default",
         });
 
-        if(cp_object.estado !== null ){
+        if (cp_object.estado !== null) {
           setSelections({
             estado: cp_object.estado?.clave,
-          })
-          await getCollection('municipio', cp_object.estado.clave)
-          if(cp_object.municipio  !== null ){
+          });
+          await getCollection("municipio", cp_object.estado.clave);
+
+          if (cp_object.municipio !== null) {
             setSelections({
               estado: cp_object.estado.clave,
               municipio: cp_object.municipio?.clave,
-            })
-            await getCollection('localidad', cp_object.municipio.clave, cp_object.estado.clave)
-            if(cp_object.localidad  !== null ){
+            });
+            await getCollection(
+              "localidad",
+              cp_object.municipio.clave,
+              cp_object.estado.clave
+            );
+            if (cp_object.localidad !== null) {
               setSelections({
                 estado: cp_object.estado?.clave,
                 municipio: cp_object.municipio?.clave,
                 localidad: cp_object.localidad?.clave,
-              })
-              await getCollection('colonia', cp_object.localidad.clave, cp_object.estado.clave)
+              });
+              await getCollection(
+                "colonia",
+                cp_object.municipio.clave,
+                cp_object.estado.clave,
+                cp_object.localidad.clave
+              );
             }
           }
-        }        
+        }
         setSelections({
           estado: cp_object.estado?.clave,
           municipio: cp_object.municipio?.clave,
@@ -111,7 +125,7 @@ const DirectionForm: FunctionComponent<DirectionFormProps> = () => {
         });
       } catch (error) {
         const { message } = error as Error;
-        console.error(error)
+        console.error(error);
         toast({
           title: "Error al obtener Codigo Postal",
           description: message || "Unexpected",
@@ -121,7 +135,7 @@ const DirectionForm: FunctionComponent<DirectionFormProps> = () => {
     }
   };
 
-  const handleOnSelectValue = (value: string | undefined, name?: string ) => {
+  const handleOnSelectValue = (value: string | undefined, name?: string) => {
     if (name) {
       const key = name as keyof SelectionsType;
 
@@ -139,7 +153,7 @@ const DirectionForm: FunctionComponent<DirectionFormProps> = () => {
           colonia: "",
         });
       } else if (key === "municipio") {
-        getCollection("localidad", value!);
+        getCollection("localidad", value!, Selections!.estado!);
         setSelections((prev) => ({
           ...prev,
           [key]: value,
@@ -147,7 +161,12 @@ const DirectionForm: FunctionComponent<DirectionFormProps> = () => {
           colonia: "",
         }));
       } else if (key === "localidad") {
-        getCollection("colonia", value!);
+        getCollection(
+          "colonia",
+          Selections!.municipio!,
+          Selections!.estado!,
+          value!
+        );
         setSelections((prev) => ({
           ...prev,
           [key]: value,
@@ -163,102 +182,100 @@ const DirectionForm: FunctionComponent<DirectionFormProps> = () => {
     }
   };
 
-  const getCollection = async  (key: keyof SelectionsType, comparKey: string , helper?: string) => {
+  async function getCollection(key: "estado"): Promise<EstadoType[]>;
+  async function getCollection(
+    key: "municipio",
+    claveMunicipio: string
+  ): Promise<MunicipioType[]>;
+  async function getCollection(
+    key: "localidad",
+    claveMunicipio: string,
+    claveEstado: string
+  ): Promise<MunicipioType[]>;
+  async function getCollection(
+    key: "colonia",
+    claveMunicipio: string,
+    claveEstado: string,
+    claveLocalidad: string
+  ): Promise<ColoniaType[]>;
+  async function getCollection(
+    key: keyof SelectionsType,
+    claveMunicipio?: string,
+    claveEstado?: string,
+    claveLocalidad?: string
+  ): Promise<
+    void | EstadoType[] | MunicipioType[] | ColoniaType[] | undefined
+  > {
     setLoading(key);
-
-    switch (key) {
-      case "municipio":
-        return getMunicipios(comparKey)
-          .then((data) => {
-            setValues((prev) => ({
-              ...prev,
-              municipios: data,
-            }));
-            setLoading(undefined);
-          })
-          .catch(({ message }) => {
-            setLoading(undefined);
-            toast({
-              title: "Error al obtener Municipios",
-              description: message || "Unexpected",
-              variant: "destructive",
-            });
-          });
-      case "localidad":
-        return getLocalidades(comparKey, Selections?.estado || helper!)
-          .then((data) => {
-            setValues((prev) => ({
-              ...prev,
-              localidades: data,
-            }));
-            setLoading(undefined);
-          })
-          .catch(({ message }) => {
-            toast({
-              title: "Error al obtener Localidades",
-              description: message || "Unexpected",
-              variant: "destructive",
-            });
-            setLoading(undefined);
-          });
-      case "colonia":
-        // eslint-disable-next-line no-case-declarations
-        const estadoHelper: string = Selections?.estado ? Selections?.estado : helper!
-        // eslint-disable-next-line no-case-declarations
-        const municipioHelper: string = Selections?.municipio ? Selections.municipio : comparKey
-        return getColonias(estadoHelper, municipioHelper, comparKey)
-          .then((data) => {
-            setValues((prev) => ({
-              ...prev,
-              colonias: data,
-            }));
-
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const ColoniaMap = new Map();
-
-            data.forEach((element: ColoniaType) => {
-              ColoniaMap.set(element.clave, element.cp);
-            });
-
-            setCPAvailables(ColoniaMap);
-            setLoading(undefined);
-          })
-          .catch(({ message }) => {
-            setValues((prev) => ({
-              ...prev,
-              colonias: [],
-            }));
-            toast({
-              title: "Error al obtener Colonias",
-              description: message || "Unexpected",
-              variant: "destructive",
-            });
-            setLoading(undefined);
-          });
-      default:
-        break;
+    let promise: Promise<EstadoType[] | MunicipioType[] | ColoniaType[]>;
+    const Switcher = {
+      estado: () => promise = getEstados(),
+      municipio: () => promise = getMunicipios(claveMunicipio!),
+      localidad: () => promise = getLocalidades(claveMunicipio!, claveEstado!),
+      colonia: () => promise = getColonias(claveEstado!, claveMunicipio!, claveLocalidad!)
     }
+    Switcher[key]();
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-expect-error
+    return promise
+      .then((data) => {
+        const values = {
+          estado: "estados" ,
+          municipio: "municipios" ,
+          localidad: "localidades" ,
+          colonia: "colonias" ,
+        }
+        setValues((prev) => ({
+          ...prev,
+          [values[key]]: data,
+        }));
+        if (key === "colonia") {
+          const ColoniaMap = new Map();
 
-  };
+          data.forEach((element) => {
+            const item = element as ColoniaType;
+            ColoniaMap.set(item.clave, item.cp);
+          });
+
+          setCPAvailables(ColoniaMap);
+          setLoading(undefined);
+          return data;
+        }
+      })
+      .catch(({ message }) => {
+        setValues((prev) => ({
+          ...prev,
+          [key]: [],
+        }));
+        toast({
+          title: `Error al obtener ${key.toUpperCase}`,
+          description: message || "Unexpected",
+          variant: "destructive",
+        });
+        setLoading(undefined);
+      });
+  }
 
   const handleOnSave = async () => {
     setLoading("saving");
-    console.log(state)
+    console.log(state);
     createRecord({
       calle: InputValue,
       colonia: Selections?.colonia,
       cp: state.cp,
-    }).then((record) => {
-      dispatch(addGlobalRecords(record))
-      setLoading(undefined);
-    }).catch(({message}) => {
-      setLoading(undefined);
+    })
+      .then((record) => {
+        dispatch(addGlobalRecords(record));
+        setLoading(undefined);
+      })
+      .catch(({ message }) => {
+        setLoading(undefined);
         toast({
           title: "Error al obtener Municipios",
           description: message || "Unexpected",
           variant: "destructive",
         });
-    });
+      });
   };
 
   const validateButton = () => {
