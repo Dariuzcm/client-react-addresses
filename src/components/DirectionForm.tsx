@@ -89,17 +89,17 @@ const DirectionForm: FunctionComponent<DirectionFormProps> = () => {
           await getCollection('municipio', cp_object.estado.clave)
           if(cp_object.municipio  !== null ){
             setSelections({
-              estado: cp_object.estado?.clave,
+              estado: cp_object.estado.clave,
               municipio: cp_object.municipio?.clave,
             })
-            await getCollection('localidad', cp_object.municipio.clave, cp_object.estado?.clave)
+            await getCollection('localidad', cp_object.municipio.clave, cp_object.estado.clave)
             if(cp_object.localidad  !== null ){
               setSelections({
                 estado: cp_object.estado?.clave,
                 municipio: cp_object.municipio?.clave,
                 localidad: cp_object.localidad?.clave,
               })
-              await getCollection('colonia', cp_object.localidad.clave, cp_object.estado?.clave)
+              await getCollection('colonia', cp_object.localidad.clave, cp_object.estado.clave)
             }
           }
         }        
@@ -202,7 +202,11 @@ const DirectionForm: FunctionComponent<DirectionFormProps> = () => {
             setLoading(undefined);
           });
       case "colonia":
-        return getColonias(Selections?.estado || helper!, Selections!.municipio!, comparKey)
+        // eslint-disable-next-line no-case-declarations
+        const estadoHelper: string = Selections?.estado ? Selections?.estado : helper!
+        // eslint-disable-next-line no-case-declarations
+        const municipioHelper: string = Selections?.municipio ? Selections.municipio : comparKey
+        return getColonias(estadoHelper, municipioHelper, comparKey)
           .then((data) => {
             setValues((prev) => ({
               ...prev,
